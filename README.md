@@ -1,6 +1,9 @@
 # Project B- CSV Mini Database and Query Engine
-## Objectives
 
+## Project Overview
+A compact CSV database engine that ingests CSV data, converts it into typed in-memory tables, and executes SQL-like queries with filtering, projection, aggregation, and join support. Designed to demonstrate core database concepts in a lightweight, extensible form.
+
+## Objectives
 - Implement a lightweight CSV-based table storage system
 - Parse CSV files into structured in-memory tables
 - Support basic query operations for filtering, projection, aggregation, and join
