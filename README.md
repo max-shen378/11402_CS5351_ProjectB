@@ -55,4 +55,4 @@ A compact CSV database engine that ingests CSV data, converts it into typed in-m
 - Support literal values for numbers and strings in query conditions
 - Select expressions may include column aliases, e.g. `SELECT col1 AS alias1`
 - A minimal engine may omit advanced features like subqueries, window functions, and complex joins for clarity
-Project B is an implementation of a CSV-based mini database and query engine. It focuses on parsing CSV files into structured tables, storing rows efficiently, and executing a compact query language for filtering, projection, aggregation, and simple joins. The implementation demonstrates core database engine concepts in a lightweight, extensible form.
+
