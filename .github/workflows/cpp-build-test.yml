@@ -18,63 +18,34 @@ on:
 
 jobs:
   build-and-test:
-    name: Build and Test on ${{ matrix.os }}
+    name: Build and Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        include:
-          - os: ubuntu-latest
-            compiler: g++
-          - os: macos-latest
-            compiler: clang++
-          - os: windows-latest
-            compiler: msvc
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Set up g++ (Ubuntu)
+    - name: Install g++ (Ubuntu)
       if: runner.os == 'Linux'
       run: |
         sudo apt-get update
         sudo apt-get install -y build-essential g++
 
-    - name: Build minidb (Linux/macOS)
-      if: runner.os != 'Windows'
+    - name: Build minidb
       shell: bash
-      run: ${{ matrix.compiler }} -std=c++17 -O2 -Wall -Wextra -o minidb src/main.cpp
+      run: g++ -std=c++17 -O2 -Wall -Wextra -o minidb src/main.cpp
 
-    - name: Build run_tests (Linux/macOS)
-      if: runner.os != 'Windows'
+    - name: Build run_tests
       shell: bash
-      run: ${{ matrix.compiler }} -std=c++17 -O2 -Wall -Wextra -o run_tests tests/test_main.cpp
+      run: g++ -std=c++17 -O2 -Wall -Wextra -o run_tests tests/test_main.cpp
 
-    - name: Run test suite (Linux/macOS)
-      if: runner.os != 'Windows'
+    - name: Run test suite
       shell: bash
       run: ./run_tests
-
-    - name: Build minidb (Windows)
-      if: runner.os == 'Windows'
-      shell: cmd
-      run: |
-        call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-        cl /EHsc /std:c++17 /O2 /W3 src\main.cpp /Fe:minidb.exe
-
-    - name: Build run_tests (Windows)
-      if: runner.os == 'Windows'
-      shell: cmd
-      run: |
-        call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-        cl /EHsc /std:c++17 /O2 /W3 tests\test_main.cpp /Fe:run_tests.exe
-
-    - name: Run test suite (Windows)
-      if: runner.os == 'Windows'
-      shell: cmd
-      run: run_tests.exe
 
   code-quality:
     name: Code Quality Checks
