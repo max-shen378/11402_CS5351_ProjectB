@@ -1,0 +1,137 @@
+name: C++ Build and Test
+
+on:
+  push:
+    branches: [ main, feature/SG11402_CS5351 ]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - '.github/workflows/**'
+      - 'CMakeLists.txt'
+      - 'Makefile'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - '.github/workflows/**'
+
+jobs:
+  build-and-test:
+    name: Build and Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            compiler: g++
+          - os: macos-latest
+            compiler: clang++
+          - os: windows-latest
+            compiler: msvc
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up g++ (Ubuntu)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential g++
+
+    - name: Build minidb (Linux/macOS)
+      if: runner.os != 'Windows'
+      shell: bash
+      run: ${{ matrix.compiler }} -std=c++17 -O2 -Wall -Wextra -o minidb src/main.cpp
+
+    - name: Build run_tests (Linux/macOS)
+      if: runner.os != 'Windows'
+      shell: bash
+      run: ${{ matrix.compiler }} -std=c++17 -O2 -Wall -Wextra -o run_tests tests/test_main.cpp
+
+    - name: Run test suite (Linux/macOS)
+      if: runner.os != 'Windows'
+      shell: bash
+      run: ./run_tests
+
+    - name: Build minidb (Windows)
+      if: runner.os == 'Windows'
+      shell: cmd
+      run: |
+        call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+        cl /EHsc /std:c++17 /O2 /W3 src\main.cpp /Fe:minidb.exe
+
+    - name: Build run_tests (Windows)
+      if: runner.os == 'Windows'
+      shell: cmd
+      run: |
+        call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+        cl /EHsc /std:c++17 /O2 /W3 tests\test_main.cpp /Fe:run_tests.exe
+
+    - name: Run test suite (Windows)
+      if: runner.os == 'Windows'
+      shell: cmd
+      run: run_tests.exe
+
+  code-quality:
+    name: Code Quality Checks
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install cppcheck
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cppcheck
+
+    - name: Static analysis
+      run: |
+        cppcheck --enable=all --std=c++17 \
+          --suppress=missingIncludeSystem \
+          --suppress=unusedFunction \
+          --error-exitcode=1 \
+          src/ tests/ || true
+
+    - name: Check trailing whitespace
+      run: |
+        if grep -rn '[[:space:]]$' src/ tests/; then
+          echo "Warning: Trailing whitespace found"
+        fi
+
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential g++ lcov
+
+    - name: Build with coverage
+      run: |
+        g++ -std=c++17 -O0 --coverage -fprofile-arcs -ftest-coverage \
+            -o run_tests tests/test_main.cpp
+
+    - name: Run tests
+      run: ./run_tests
+
+    - name: Generate coverage report
+      run: |
+        lcov --capture --directory . --output-file coverage.info \
+             --ignore-errors mismatch
+        lcov --remove coverage.info '/usr/*' --output-file coverage.info \
+             --ignore-errors mismatch
+        lcov --list coverage.info
+
+    - name: Upload to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        files: ./coverage.info
+        fail_ci_if_error: false
