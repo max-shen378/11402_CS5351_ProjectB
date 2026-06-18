@@ -37,11 +37,15 @@ jobs:
 
     - name: Build minidb
       shell: bash
-      run: g++ -std=c++17 -O2 -Wall -Wextra -o minidb src/main.cpp
+      run: |
+        STATIC=$([[ "$RUNNER_OS" == "Windows" ]] && echo "-static" || echo "")
+        g++ -std=c++17 -O2 -Wall -Wextra $STATIC -o minidb src/main.cpp
 
     - name: Build run_tests
       shell: bash
-      run: g++ -std=c++17 -O2 -Wall -Wextra -o run_tests tests/test_main.cpp
+      run: |
+        STATIC=$([[ "$RUNNER_OS" == "Windows" ]] && echo "-static" || echo "")
+        g++ -std=c++17 -O2 -Wall -Wextra $STATIC -o run_tests tests/test_main.cpp
 
     - name: Run test suite
       shell: bash
