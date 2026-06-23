@@ -269,6 +269,69 @@ void runBench(size_t n) {
                  "matching rows, so the index helps much less.\n";
 }
 
+// ---------------------------------------------------------------- demo ----
+//
+// Self-contained walkthrough of all four pipeline stages using the Iris
+// dataset.  Run with:  ./minidb data/Iris.csv data/SpeciesInfo.csv --demo
+void runDemo(Database& db) {
+    auto step = [](int n, const char* title) {
+        std::cout << "\n[" << n << "/5] " << title << "\n"
+                  << std::string(60, '-') << "\n";
+    };
+    auto run = [&](const std::string& sql) {
+        std::cout << "SQL: " << sql << "\n";
+        Options opt; opt.timer = true;
+        runStatement(db, sql, opt);
+    };
+
+    std::cout << "=== minidb: CSV Mini Database & Query Engine ===\n";
+
+    // 1. LOAD
+    step(1, "LOAD — CSV files parsed into typed in-memory tables");
+    for (const auto& name : db.tableNames()) {
+        Table* t = db.findTable(name);
+        std::cout << "  table \"" << name << "\"  (" << t->rows.size() << " rows, "
+                  << t->columns.size() << " columns)\n";
+        for (const auto& c : t->columns)
+            std::cout << "    " << c.name << "  " << typeName(c.type) << "\n";
+    }
+
+    // 2. PARSE + FILTER + SORT
+    step(2, "PARSE + EXECUTE — filter and sort");
+    run("SELECT Id, SepalLengthCm, Species FROM Iris "
+        "WHERE SepalLengthCm > 7.0 ORDER BY SepalLengthCm DESC;");
+
+    // 3. AGGREGATE
+    step(3, "AGGREGATE — GROUP BY with COUNT and AVG");
+    run("SELECT Species, COUNT(*) AS n, AVG(PetalLengthCm) AS avg_petal, "
+        "MAX(PetalWidthCm) AS max_width FROM Iris GROUP BY Species ORDER BY avg_petal DESC;");
+
+    // 4. JOIN
+    step(4, "JOIN — two CSV tables joined on a shared key");
+    run("SELECT i.Id, s.CommonName, i.PetalLengthCm FROM Iris i "
+        "JOIN SpeciesInfo s ON i.Species = s.Species "
+        "WHERE i.PetalLengthCm > 6.3 ORDER BY i.PetalLengthCm DESC;");
+
+    // 5. INDEX
+    step(5, "INDEX — hash index vs. full scan on the same query");
+    std::string q = "SELECT Id, Species FROM Iris WHERE Species = 'Iris-setosa' LIMIT 5;";
+    std::cout << "SQL: " << q << "\n";
+    Options opt; opt.timer = true;
+    runStatement(db, q, opt);
+
+    Table* iris = db.findTable("Iris");
+    if (iris) {
+        auto t0 = std::chrono::steady_clock::now();
+        iris->buildIndex(iris->findColumn("Species"));
+        std::cout << "  (hash index built on Iris.Species in " << msSince(t0) << " ms)\n\n";
+    }
+    std::cout << "same query, now with index:\n";
+    runStatement(db, q, opt);
+
+    std::cout << std::string(60, '-') << "\n"
+              << "Done. Run './minidb data/Iris.csv data/SpeciesInfo.csv' for the REPL.\n";
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -276,6 +339,7 @@ int main(int argc, char** argv) {
     std::vector<std::string> queries;
     std::string scriptPath;
     bool wantBench = false;
+    bool wantDemo = false;
     size_t benchN = 1000000;
 
     std::vector<std::string> args(argv + 1, argv + argc);
@@ -286,6 +350,8 @@ int main(int argc, char** argv) {
                 queries.push_back(args[++i]);
             } else if (a == "-f" && i + 1 < args.size()) {
                 scriptPath = args[++i];
+            } else if (a == "--demo") {
+                wantDemo = true;
             } else if (a == "--bench") {
                 wantBench = true;
                 if (i + 1 < args.size() && args[i + 1].find_first_not_of("0123456789") ==
@@ -315,6 +381,10 @@ int main(int argc, char** argv) {
         }
     }
 
+    if (wantDemo) {
+        runDemo(db);
+        return 0;
+    }
     if (wantBench) {
         runBench(benchN);
         return 0;
